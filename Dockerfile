@@ -11,7 +11,7 @@ COPY assets ./assets
 VOLUME /app/data
 
 # 暴露端口
-EXPOSE 9527
+EXPOSE 80
 
 # 启动服务
 CMD ["python", "server.py"]

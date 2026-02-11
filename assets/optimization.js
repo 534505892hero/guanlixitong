@@ -8,194 +8,304 @@
     const DATA_API = `${API_BASE}/data`;
     const CHANGE_PASS_API = `${API_BASE}/change_password`;
 
-    // 样式注入：登录弹窗
+    // 样式注入：简洁登录页面
     const authStyle = document.createElement('style');
     authStyle.textContent = `
-        #auth-modal {
+        #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: #f3f4f6;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 10000;
+            z-index: 20000;
         }
-        .auth-box {
+        .login-card {
             background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            width: 300px;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-header {
             text-align: center;
+            margin-bottom: 2rem;
         }
-        .auth-box h3 { margin-top: 0; }
-        .auth-box input {
-            width: 100%;
-            padding: 8px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        .login-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
         }
-        .auth-box button {
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        .form-input {
             width: 100%;
-            padding: 8px;
-            background: #2563eb;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            border-color: #2563eb;
+            ring: 2px solid #2563eb;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #2563eb;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
             cursor: pointer;
+            transition: background-color 0.2s;
         }
-        .auth-box button:hover { background: #1d4ed8; }
-        .auth-error { color: red; font-size: 0.8rem; margin-top: 5px; display: none; }
+        .login-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .error-msg {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            text-align: center;
+            display: none;
+        }
+        /* 隐藏主应用内容 */
+        body.is-locked > *:not(#login-overlay) {
+            filter: blur(5px);
+            pointer-events: none;
+        }
         
-        #change-pass-btn {
+        #change-pass-trigger {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
             font-size: 12px;
+            color: #6b7280;
             cursor: pointer;
-            z-index: 9999;
+            z-index: 1000;
         }
     `;
     document.head.appendChild(authStyle);
 
     let token = localStorage.getItem('auth_token');
 
-    // 创建登录弹窗
-    function showLoginModal(isChangePass = false) {
-        if (document.getElementById('auth-modal')) return;
+    // 显示全屏登录页
+    function showLoginPage() {
+        if (document.getElementById('login-overlay')) return;
 
-        const modal = document.createElement('div');
-        modal.id = 'auth-modal';
+        // 锁定主页面
+        document.body.classList.add('is-locked');
+
+        const overlay = document.createElement('div');
+        overlay.id = 'login-overlay';
         
-        const content = isChangePass 
-            ? `
-                <h3>修改密码</h3>
-                <input type="password" id="old-pass" placeholder="当前密码">
-                <input type="password" id="new-pass" placeholder="新密码">
-                <button onclick="handleChangePass()">确认修改</button>
-                <button onclick="closeModal()" style="margin-top:5px;background:#666">取消</button>
-              `
-            : `
-                <h3>系统登录</h3>
-                <p style="font-size:12px;color:#666;margin-bottom:10px">请输入管理员密码以同步数据</p>
-                <input type="password" id="login-pass" placeholder="密码">
-                <button onclick="handleLogin()">登录</button>
-              `;
-
-        modal.innerHTML = `
-            <div class="auth-box">
-                ${content}
-                <div id="auth-error" class="auth-error"></div>
+        overlay.innerHTML = `
+            <div class="login-card">
+                <div class="login-header">
+                    <h2>山科智能科研管理系统</h2>
+                </div>
+                <form id="login-form" onsubmit="handleLoginSubmit(event)">
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" class="form-input" placeholder="请输入用户名" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input type="password" id="password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="login-btn">登 录</button>
+                    <div id="login-error" class="error-msg"></div>
+                </form>
             </div>
         `;
-        document.body.appendChild(modal);
-        
-        // 绑定事件
-        window.handleLogin = async () => {
-            const pass = document.getElementById('login-pass').value;
+        document.body.appendChild(overlay);
+
+        // 全局暴露处理函数
+        window.handleLoginSubmit = async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            
+            errorDiv.style.display = 'none';
+            
             try {
                 const res = await fetch(LOGIN_API, {
                     method: 'POST',
-                    body: JSON.stringify({ password: pass })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
                 });
+                
                 const data = await res.json();
+                
                 if (res.ok) {
                     token = data.token;
                     localStorage.setItem('auth_token', token);
-                    closeModal();
-                    restoreData(); // 登录成功后立即同步
+                    // 销毁登录页
+                    overlay.remove();
+                    document.body.classList.remove('is-locked');
+                    restoreData(); // 开始同步数据
                 } else {
-                    showError(data.error || '登录失败');
+                    errorDiv.textContent = data.error || '用户名或密码错误';
+                    errorDiv.style.display = 'block';
                 }
-            } catch (e) {
-                showError('网络错误');
+            } catch (err) {
+                errorDiv.textContent = '网络连接失败，请稍后重试';
+                errorDiv.style.display = 'block';
             }
         };
+    }
 
-        window.handleChangePass = async () => {
+    // 显示修改密码界面 (简单复用登录样式，实际项目可做单独页面)
+    function showChangePassModal() {
+        if (!token) return;
+        
+        const existing = document.getElementById('change-pass-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'change-pass-overlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 20001;
+        `;
+        
+        overlay.innerHTML = `
+            <div class="login-card" style="position: relative;">
+                <button onclick="this.closest('#change-pass-overlay').remove()" style="position: absolute; right: 15px; top: 10px; border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
+                <div class="login-header">
+                    <h2>修改密码</h2>
+                </div>
+                <form onsubmit="handleChangePassSubmit(event)">
+                    <div class="form-group">
+                        <label>旧密码</label>
+                        <input type="password" id="old-pass" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>新密码</label>
+                        <input type="password" id="new-pass" class="form-input" required minlength="6">
+                    </div>
+                    <button type="submit" class="login-btn">确认修改</button>
+                    <div id="cp-error" class="error-msg"></div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        window.handleChangePassSubmit = async (e) => {
+            e.preventDefault();
             const oldPass = document.getElementById('old-pass').value;
             const newPass = document.getElementById('new-pass').value;
+            const errorDiv = document.getElementById('cp-error');
+
             try {
                 const res = await fetch(CHANGE_PASS_API, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
                     body: JSON.stringify({ old_password: oldPass, new_password: newPass })
                 });
+
                 const data = await res.json();
+                
                 if (res.ok) {
                     alert('密码修改成功，请重新登录');
-                    token = null;
-                    localStorage.removeItem('auth_token');
-                    closeModal();
-                    showLoginModal();
+                    logout();
                 } else {
-                    showError(data.error || '修改失败');
+                    errorDiv.textContent = data.error || '修改失败';
+                    errorDiv.style.display = 'block';
                 }
-            } catch (e) {
-                showError('网络错误');
+            } catch (err) {
+                errorDiv.textContent = '网络错误';
+                errorDiv.style.display = 'block';
             }
         };
+    }
 
-        window.closeModal = () => modal.remove();
+    function logout() {
+        token = null;
+        localStorage.removeItem('auth_token');
+        document.getElementById('change-pass-overlay')?.remove();
+        showLoginPage();
+    }
+
+    // 添加修改密码入口
+    function addChangePassTrigger() {
+        const trigger = document.createElement('div');
+        trigger.id = 'change-pass-trigger';
+        trigger.innerHTML = `<span onclick="showChangePassModal()">修改密码</span> | <span onclick="logout()">退出登录</span>`;
+        // 仅在登录后显示
+        if (token) document.body.appendChild(trigger);
         
-        function showError(msg) {
-            const err = document.getElementById('auth-error');
-            err.textContent = msg;
-            err.style.display = 'block';
+        // 监听 Token 变化以更新 UI
+        const originalSetItem = localStorage.setItem;
+        const originalRemoveItem = localStorage.removeItem;
+        
+        // 简单 Hack：覆写 removeItem 以移除按钮
+        localStorage.removeItem = function(key) {
+            originalRemoveItem.apply(this, arguments);
+            if (key === 'auth_token') trigger.remove();
         }
     }
 
-    // 添加修改密码按钮
-    function addChangePassBtn() {
-        const btn = document.createElement('div');
-        btn.id = 'change-pass-btn';
-        btn.textContent = '修改密码';
-        btn.onclick = () => showLoginModal(true);
-        document.body.appendChild(btn);
-    }
-
-    // 1. 初始化：从服务器加载数据并恢复到 localStorage
+    // 数据恢复逻辑
     async function restoreData() {
         if (!token) {
-            showLoginModal();
+            showLoginPage();
             return;
         }
+        
+        // 确保修改密码按钮存在
+        if (!document.getElementById('change-pass-trigger')) {
+            addChangePassTrigger();
+        }
+
         try {
             const response = await fetch(DATA_API, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
             if (response.status === 401) {
-                token = null;
-                localStorage.removeItem('auth_token');
-                showLoginModal();
+                logout();
                 return;
             }
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('[DB Sync] Restoring data from server...', Object.keys(data).length, 'items');
+                // console.log('[DB Sync] Restoring data...', Object.keys(data).length);
                 Object.keys(data).forEach(key => {
                     localStorage.setItem(key, JSON.stringify(data[key]));
                 });
             }
         } catch (e) {
-            console.error('[DB Sync] Failed to restore data:', e);
+            console.error('[DB Sync] Failed:', e);
         }
     }
 
-    // 2. 拦截 localStorage.setItem 以同步保存到服务器
+    // 拦截存储
     const originalSetItem = localStorage.setItem;
     localStorage.setItem = function(key, value) {
         originalSetItem.apply(this, arguments);
 
         if (!key.startsWith('debug_') && key !== 'auth_token') {
-            if (!token) return; // 未登录不保存到服务器
+            if (!token) return;
 
             fetch(DATA_API, {
                 method: 'POST',
@@ -204,19 +314,24 @@
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ [key]: JSON.parse(value) })
-            }).catch(e => console.error('[DB Sync] Sync failed:', e));
+            }).catch(() => {});
         }
     };
 
-    // 等待 DOM 加载后初始化 UI
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
+    // 初始化
+    const init = () => {
+        // 如果没有 token，立即显示登录页
+        if (!token) {
+            showLoginPage();
+        } else {
             restoreData();
-            addChangePassBtn();
-        });
+        }
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        restoreData();
-        addChangePassBtn();
+        init();
     }
 })();
 

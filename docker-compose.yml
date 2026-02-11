@@ -6,7 +6,7 @@ services:
     build: .
     container_name: sk-research-app
     ports:
-      - "9527:9527"
+      - "80:80"
     volumes:
       - ./app_data.db:/app/app_data.db
     restart: always

@@ -9,7 +9,7 @@ import secrets
 import base64
 from urllib.parse import urlparse
 
-PORT = 9527
+PORT = 80
 DB_FILE = "app_data.db"
 DEFAULT_ADMIN_PASS = "Admin@2026"
 
