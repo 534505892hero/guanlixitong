@@ -57,17 +57,19 @@
                 
                 if (res.ok) {
                     this.setSession(data.token, data.username);
-                    await DataManager.syncDown(); // 登录后立即拉取数据
-                    UI.hideLogin();
-                    // 延迟刷新，确保数据写入和 UI 状态更新
-                    setTimeout(() => {
-                        window.location.reload(); 
-                    }, 500);
+                    await DataManager.syncDown(); 
+                    
+                    // 登录成功后，不再只依靠 reload，而是尝试手动触发 React 路由跳转
+                    // 假设 React 使用的是 HashRouter，我们直接修改 Hash
+                    window.location.hash = '/'; 
+                    window.location.reload(); 
                 } else {
                     throw new Error(data.error || '登录失败');
                 }
             } catch (e) {
-                UI.showError(e.message);
+                // 如果是 DOM 劫持模式，这里应该把错误反馈给原表单（如果需要）
+                // 但目前我们还是全权接管，所以使用 Alert 或自定义 UI
+                alert(e.message); 
             }
         }
 
@@ -297,108 +299,88 @@
         }
     }
 
-    // --- 3. UI 管理 (UI Manager) ---
+    // --- 3. UI 管理与 DOM 劫持 (UI Manager & Hijacker) ---
     class UI {
         static init() {
-            this.injectStyles();
             this.setupInterceptors();
-            this.setupRouterGuard();
+            this.hijackLogin(); // 启动 DOM 劫持
             
-            if (!State.token) {
-                this.showLogin();
-            } else {
+            if (State.token) {
                 // 验证 Token 有效性
                 fetch(CONFIG.API.CHECK, {
                     headers: { 'Authorization': `Bearer ${State.token}` }
                 }).then(res => {
                     if (!res.ok) AuthService.logout();
-                    else DataManager.syncDown(); // 每次刷新都拉取一次最新数据
-                }).catch(() => {}); // 网络错误暂不处理
+                    else DataManager.syncDown();
+                }).catch(() => {});
                 
                 this.addLogoutButton();
-
-                // 强制显示主页
-                const root = document.getElementById('root');
-                if (root) {
-                    root.classList.remove('hidden');
-                    root.style.display = 'block';
-                }
             }
         }
 
-        static injectStyles() {
-            const css = `
-                :root { --tech-blue: #3b82f6; --tech-dark: #0f172a; }
-                #login-overlay { position: fixed; inset: 0; background: #0f172a; z-index: 99999; display: flex; justify-content: center; align-items: center; }
-                .login-box { background: rgba(30,41,59,0.8); padding: 40px; border-radius: 16px; width: 400px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); color: white; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-                .login-input { width: 100%; padding: 12px; margin: 10px 0; background: rgba(0,0,0,0.2); border: 1px solid #334155; color: white; border-radius: 8px; box-sizing: border-box; }
-                .login-btn { width: 100%; padding: 12px; background: var(--tech-blue); border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px; transition: 0.2s; }
-                .login-btn:hover { background: #2563eb; }
-                .sys-trigger { position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: white; padding: 8px 15px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; font-size: 14px; color: #333; }
-                .sys-trigger span:hover { color: var(--tech-blue); text-decoration: underline; }
-                #root.hidden { display: none !important; }
-                /* 确保 root 始终占满屏幕，避免高度为 0 */
-                #root { min-height: 100vh; width: 100%; }
-            `;
-            const style = document.createElement('style');
-            style.textContent = css;
-            document.head.appendChild(style);
-        }
+        // 核心：劫持原生登录逻辑
+        static hijackLogin() {
+            const observer = new MutationObserver(() => {
+                // 寻找登录按钮（根据类名或结构特征）
+                // 假设是那个绿色的 "登录" 按钮
+                const loginBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('登录'));
+                if (loginBtn && !loginBtn.dataset.hijacked) {
+                    console.log('[Hijack] Login button found, taking control...');
+                    loginBtn.dataset.hijacked = 'true';
+                    
+                    // 克隆按钮以移除 React 事件绑定
+                    const newBtn = loginBtn.cloneNode(true);
+                    loginBtn.parentNode.replaceChild(newBtn, loginBtn);
+                    
+                    // 绑定我们自己的逻辑
+                    newBtn.onclick = async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // 获取输入框的值
+                        const inputs = document.querySelectorAll('input');
+                        let username = '', password = '';
+                        inputs.forEach(input => {
+                            if (input.type === 'text') username = input.value;
+                            if (input.type === 'password') password = input.value;
+                        });
 
-        static showLogin() {
-            if (document.getElementById('login-overlay')) return;
-            document.body.classList.add('is-locked');
-            
-            // 隐藏主应用
-            const root = document.getElementById('root');
-            if (root) root.classList.add('hidden');
+                        if (!username || !password) {
+                            alert('请输入用户名和密码');
+                            return;
+                        }
 
-            const div = document.createElement('div');
-            div.id = 'login-overlay';
-            div.innerHTML = `
-                <div class="login-box">
-                    <h2 style="margin-bottom: 20px;">山科智能科研管理系统</h2>
-                    <form id="login-form">
-                        <input type="text" id="u-name" class="login-input" placeholder="用户名" required>
-                        <input type="password" id="u-pass" class="login-input" placeholder="密码" required>
-                        <button type="submit" class="login-btn">登 录</button>
-                        <div id="l-msg" style="color: #fca5a5; margin-top: 15px; font-size: 14px;"></div>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(div);
+                        // 修改按钮状态
+                        const originalText = newBtn.textContent;
+                        newBtn.textContent = '登录中...';
+                        newBtn.disabled = true;
 
-            document.getElementById('login-form').onsubmit = (e) => {
-                e.preventDefault();
-                const u = document.getElementById('u-name').value;
-                const p = document.getElementById('u-pass').value;
-                document.querySelector('.login-btn').textContent = '登录中...';
-                AuthService.login(u, p);
-            };
+                        try {
+                            await AuthService.login(username, password);
+                        } catch (err) {
+                            newBtn.textContent = originalText;
+                            newBtn.disabled = false;
+                        }
+                    };
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
         }
 
         static hideLogin() {
-            const overlay = document.getElementById('login-overlay');
-            if (overlay) overlay.remove();
-            document.body.classList.remove('is-locked');
-            const root = document.getElementById('root');
-            if (root) {
-                root.classList.remove('hidden');
-                // Ensure root is visible
-                root.style.display = 'block';
-                // 强制 React 路由重置 (Hack)
-                if (window.location.hash.includes('login')) {
-                    window.location.hash = '/';
-                }
-            }
+            // DOM 劫持模式下，没有 overlay 需要隐藏，只需要状态更新
+            // 这里可以做一些善后工作
             this.addLogoutButton();
         }
 
-        static showError(msg) {
-            const el = document.getElementById('l-msg');
-            if (el) el.textContent = msg;
-            const btn = document.querySelector('.login-btn');
-            if (btn) btn.textContent = '登 录';
+        static showLogin() {
+            // DOM 劫持模式下，我们依赖原页面的登录框，所以这里不需要做任何事
+            // 如果已经在登录页，就等待用户操作
+            // 如果不在登录页，理论上应该跳转到登录页，但这是 React 的事
+            if (!window.location.href.includes('login') && !State.token) {
+                // 可选：强制跳回登录页
+                // window.location.href = '/#/login'; 
+            }
         }
 
         static addLogoutButton() {

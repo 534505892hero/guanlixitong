@@ -97,6 +97,12 @@ def init_db():
                   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   FOREIGN KEY(user_id) REFERENCES users(id))''')
     
+    # Upgrade Schema for Refresh Token
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN refresh_token TEXT")
+    except sqlite3.OperationalError:
+        pass # Already exists
+
     # Initialize Admin
     c.execute("SELECT * FROM users WHERE username='admin'")
     if not c.fetchone():
@@ -104,6 +110,11 @@ def init_db():
         c.execute("INSERT INTO users (username, salt, password_hash) VALUES (?, ?, ?)",
                   ('admin', salt, pwd_hash))
         print(f"[*] Initialized 'admin' user.")
+    else:
+        # 强制重置 admin 密码以确保测试环境一致性 (可选，仅用于调试)
+        # salt, pwd_hash = hash_password(DEFAULT_ADMIN_PASS)
+        # c.execute("UPDATE users SET salt=?, password_hash=? WHERE username='admin'", (salt, pwd_hash))
+        pass
     
     conn.commit()
     conn.close()
@@ -173,12 +184,19 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         
+        # 调试日志
+        # print(f"[DEBUG] POST request to {path}")
+        
         if path == '/api/auth/login':
             self.handle_login()
+            return
+        elif path == '/api/auth/refresh':
+            self.handle_refresh()
             return
         
         user = self.get_user_from_token()
         if not user:
+            # print(f"[DEBUG] Unauthorized access to {path}")
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
@@ -208,19 +226,61 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             username = body.get('username')
             password = body.get('password')
             
+            # print(f"[DEBUG] Login attempt: {username}")
+            
             conn = sqlite3.connect(DB_FILE)
             c = conn.cursor()
             c.execute("SELECT id, salt, password_hash FROM users WHERE username=?", (username,))
             row = c.fetchone()
             
-            if row and verify_password(password, row[1], row[2]):
-                token = secrets.token_urlsafe(32)
-                expiry = time.time() + 86400 # 24 hours
-                c.execute("UPDATE users SET token=?, token_expiry=? WHERE id=?", (token, expiry, row[0]))
-                conn.commit()
-                self.send_json({"token": token, "username": username})
+            if row:
+                # print(f"[DEBUG] User found: {row[0]}")
+                if verify_password(password, row[1], row[2]):
+                    # print("[DEBUG] Password verified")
+                    access_token = secrets.token_urlsafe(32)
+                    refresh_token = secrets.token_urlsafe(32)
+                    expiry = time.time() + 3600 # 1 hour
+                    
+                    c.execute("UPDATE users SET token=?, refresh_token=?, token_expiry=? WHERE id=?", 
+                              (access_token, refresh_token, expiry, row[0]))
+                    conn.commit()
+                    self.send_json({
+                        "token": access_token, 
+                        "refresh_token": refresh_token,
+                        "username": username
+                    })
+                else:
+                    # print("[DEBUG] Password mismatch")
+                    self.send_json({"error": "Invalid credentials"}, 401)
             else:
+                # print("[DEBUG] User not found")
                 self.send_json({"error": "Invalid credentials"}, 401)
+            conn.close()
+        except Exception as e:
+            # print(f"[DEBUG] Login Error: {e}")
+            self.send_json({"error": str(e)}, 500)
+
+    def handle_refresh(self):
+        try:
+            length = int(self.headers['Content-Length'])
+            body = json.loads(self.rfile.read(length))
+            refresh_token = body.get('refresh_token')
+            
+            conn = sqlite3.connect(DB_FILE)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT * FROM users WHERE refresh_token=?", (refresh_token,))
+            user = c.fetchone()
+            
+            if user:
+                new_access_token = secrets.token_urlsafe(32)
+                new_expiry = time.time() + 3600 # 1 hour
+                c.execute("UPDATE users SET token=?, token_expiry=? WHERE id=?", 
+                          (new_access_token, new_expiry, user['id']))
+                conn.commit()
+                self.send_json({"token": new_access_token})
+            else:
+                self.send_json({"error": "Invalid refresh token"}, 401)
             conn.close()
         except Exception as e:
             self.send_json({"error": str(e)}, 500)
@@ -371,7 +431,7 @@ if __name__ == "__main__":
     mimetypes.add_type('application/javascript', '.js')
     mimetypes.add_type('text/css', '.css')
     
-    socketserver.TCPServer.allow_reuse_address = True
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
     print(f"Starting server at http://localhost:{PORT}")
-    with socketserver.TCPServer(("", PORT), RequestHandler) as httpd:
+    with socketserver.ThreadingTCPServer(("", PORT), RequestHandler) as httpd:
         httpd.serve_forever()
