@@ -362,9 +362,15 @@
             if (overlay) overlay.remove();
             document.body.classList.remove('is-locked');
             const root = document.getElementById('root');
-            if (root) root.classList.remove('hidden');
-            // Ensure root is visible
-            if (root) root.style.display = 'block';
+            if (root) {
+                root.classList.remove('hidden');
+                // Ensure root is visible
+                root.style.display = 'block';
+                // 强制 React 路由重置 (Hack)
+                if (window.location.hash.includes('login')) {
+                    window.location.hash = '/';
+                }
+            }
             this.addLogoutButton();
         }
 
@@ -451,7 +457,16 @@
                     if (State.token) {
                          // 已登录但显示登录页 -> 隐藏并跳转
                          root.classList.add('hidden');
-                         if (!window.location.href.endsWith('/') && !window.location.hash.startsWith('#/')) {
+                         root.style.display = 'none';
+                         // 暴力清除 URL Hash
+                         if (window.location.hash.includes('login') || window.location.pathname.includes('login')) {
+                             console.log('[RouterGuard] Cleaning URL...');
+                             window.history.pushState({}, '', '/'); // 使用 pushState 无刷新修改 URL
+                             window.location.href = '/'; // 强制刷新跳转
+                         } else {
+                             // 如果 URL 看起来正常但还是渲染了登录页，可能是 React 内部状态问题
+                             // 尝试点击页面上的 "Logo" 或其他导航元素（如果有）
+                             // 或者直接重载
                              window.location.href = '/';
                          }
                     } else {
