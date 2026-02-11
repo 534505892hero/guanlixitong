@@ -296,6 +296,13 @@
                 }).catch(() => {}); // 网络错误暂不处理
                 
                 this.addLogoutButton();
+
+                // 强制显示主页
+                const root = document.getElementById('root');
+                if (root) {
+                    root.classList.remove('hidden');
+                    root.style.display = 'block';
+                }
             }
         }
 
@@ -437,28 +444,27 @@
                 const root = document.getElementById('root');
                 if (!root) return;
 
-                // 增加防御性检查，防止死循环隐藏
-                if (root.classList.contains('hidden') && State.token && !root.innerText.includes('用户登录')) {
-                    root.classList.remove('hidden');
-                    root.style.display = 'block';
-                }
-
-                if (root.innerText.includes('用户登录') || root.innerText.includes('请输入您的账号和密码')) {
-                     if (State.token) {
+                // 优先检查是否应该显示：只要已登录且 Token 验证通过，就显示
+                if (State.token) {
+                    // 如果内容包含原登录页特征，才隐藏
+                    if (root.innerText.includes('用户登录') || root.innerText.includes('请输入您的账号和密码')) {
+                        root.classList.add('hidden');
+                        root.style.display = 'none';
+                        // 强制跳转主页
+                        if (!window.location.href.endsWith('/') && !window.location.hash.startsWith('#/')) {
+                            console.log('[RouterGuard] Redirecting to root...');
+                            window.location.href = '/';
+                        }
+                    } else {
+                        // 否则一律显示
+                        root.classList.remove('hidden');
+                        root.style.display = 'block';
+                    }
+                } else {
+                    // 未登录，且是原登录页，隐藏（显示我们的 Overlay）
+                    if (root.innerText.includes('用户登录') || root.innerText.includes('请输入您的账号和密码')) {
                          root.classList.add('hidden');
-                         // 强制跳转主页
-                         if (!window.location.href.endsWith('/')) {
-                             console.log('[RouterGuard] Redirecting to root...');
-                             window.location.href = '/';
-                         }
-                     } else {
-                         // 未登录时，我们的 Overlay 应该在上面，所以不需要隐藏 root，
-                         // 但为了防止样式冲突，还是隐藏好
-                         root.classList.add('hidden');
-                     }
-                } else if (State.token) {
-                    root.classList.remove('hidden');
-                    root.style.display = 'block';
+                    }
                 }
             });
             observer.observe(document.body, { childList: true, subtree: true });
