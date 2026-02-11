@@ -8,14 +8,14 @@
     // --- 配置常量 ---
     const CONFIG = {
         API: {
-            LOGIN: '/api/auth/login',
-            LOGOUT: '/api/auth/logout',
-            PASS: '/api/auth/password',
-            CHECK: '/api/auth/check',
-            UPLOAD: '/api/upload',
-            COPYRIGHTS: '/api/copyrights',
-            PAPERS: '/api/papers',
-            PATENTS: '/api/patents'
+            LOGIN: 'http://localhost:8089/api/auth/login',
+            LOGOUT: 'http://localhost:8089/api/auth/logout',
+            PASS: 'http://localhost:8089/api/auth/password',
+            CHECK: 'http://localhost:8089/api/auth/check',
+            UPLOAD: 'http://localhost:8089/api/upload',
+            COPYRIGHTS: 'http://localhost:8089/api/copyrights',
+            PAPERS: 'http://localhost:8089/api/papers',
+            PATENTS: 'http://localhost:8089/api/patents'
         },
         // 自动识别数据的特征字段
         SCHEMA_SIGNATURES: {
