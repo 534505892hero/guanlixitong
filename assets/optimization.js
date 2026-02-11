@@ -6,16 +6,25 @@
 
 (function() {
     // --- 配置常量 ---
+    // 动态获取当前主机地址，适配不同的运行环境 (localhost, 127.0.0.1, IP)
+    const getBaseUrl = () => {
+        const port = 8089; // 后端固定端口
+        const hostname = window.location.hostname;
+        return `http://${hostname}:${port}`;
+    };
+    
+    const BASE_URL = getBaseUrl();
+
     const CONFIG = {
         API: {
-            LOGIN: 'http://localhost:8089/api/auth/login',
-            LOGOUT: 'http://localhost:8089/api/auth/logout',
-            PASS: 'http://localhost:8089/api/auth/password',
-            CHECK: 'http://localhost:8089/api/auth/check',
-            UPLOAD: 'http://localhost:8089/api/upload',
-            COPYRIGHTS: 'http://localhost:8089/api/copyrights',
-            PAPERS: 'http://localhost:8089/api/papers',
-            PATENTS: 'http://localhost:8089/api/patents'
+            LOGIN: `${BASE_URL}/api/auth/login`,
+            LOGOUT: `${BASE_URL}/api/auth/logout`,
+            PASS: `${BASE_URL}/api/auth/password`,
+            CHECK: `${BASE_URL}/api/auth/check`,
+            UPLOAD: `${BASE_URL}/api/upload`,
+            COPYRIGHTS: `${BASE_URL}/api/copyrights`,
+            PAPERS: `${BASE_URL}/api/papers`,
+            PATENTS: `${BASE_URL}/api/patents`
         },
         // 自动识别数据的特征字段
         SCHEMA_SIGNATURES: {
@@ -142,15 +151,26 @@
         }
 
         static async fetchList(url) {
-            const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${State.token}` }
-            });
-            if (res.status === 401) {
-                AuthService.clearSession();
-                UI.showLogin();
-                throw new Error('Unauthorized');
+            try {
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${State.token}` }
+                });
+                if (res.status === 401) {
+                    console.error('[Auth] 401 Unauthorized in fetchList');
+                    AuthService.clearSession();
+                    UI.showLogin();
+                    // 不要抛出错误，而是返回空数组，避免阻塞后续 Promise.all
+                    return [];
+                }
+                if (!res.ok) {
+                    console.error(`[Sync] Fetch failed: ${res.status} ${res.statusText}`);
+                    return [];
+                }
+                return await res.json();
+            } catch (e) {
+                console.error(`[Sync] Network error for ${url}:`, e);
+                return [];
             }
-            return res.ok ? await res.json() : [];
         }
 
         static writeToStorage(key, data) {
