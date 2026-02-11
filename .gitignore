@@ -11,3 +11,4 @@ __pycache__/
 
 # Ignore Trae metadata
 .trae/
+uploads/

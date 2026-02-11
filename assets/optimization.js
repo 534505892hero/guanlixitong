@@ -70,6 +70,8 @@
                 // 如果是 DOM 劫持模式，这里应该把错误反馈给原表单（如果需要）
                 // 但目前我们还是全权接管，所以使用 Alert 或自定义 UI
                 alert(e.message); 
+                // 重新抛出以便 UI 层恢复按钮状态
+                throw e;
             }
         }
 
@@ -89,8 +91,34 @@
         static setSession(token, username) {
             State.token = token;
             State.username = username;
+            
+            // 1. 设置我们的持久化 Token
             State.originalSetItem.call(localStorage, 'auth_token', token);
             State.originalSetItem.call(localStorage, 'auth_user', username);
+            
+            // 2. 注入原 React 应用所需的 Key，使其认为已登录
+            // 根据逆向工程发现的 Key: KEYS.CURRENT_USER = "ipms_current_user", KEYS.USER = "ipms_user"
+            State.originalSetItem.call(localStorage, 'ipms_current_user', username);
+            
+            // 尝试构造 ipms_user (可能包含用户列表或当前用户详情)
+            // 为了安全起见，我们构造一个包含当前用户的对象/数组
+            const userInfo = { username: username, role: 'admin', lastLogin: new Date().toISOString() };
+            // 如果原系统将其视为用户库(Array)，我们先读取旧的
+            try {
+                const oldUsers = JSON.parse(localStorage.getItem('ipms_user') || '[]');
+                if (Array.isArray(oldUsers)) {
+                    // 更新或添加当前用户
+                    const idx = oldUsers.findIndex(u => u.username === username);
+                    if (idx > -1) oldUsers[idx] = userInfo;
+                    else oldUsers.push(userInfo);
+                    State.originalSetItem.call(localStorage, 'ipms_user', JSON.stringify(oldUsers));
+                } else {
+                    // 如果不是数组，可能就是单个对象
+                     State.originalSetItem.call(localStorage, 'ipms_user', JSON.stringify(userInfo));
+                }
+            } catch(e) {
+                 State.originalSetItem.call(localStorage, 'ipms_user', JSON.stringify([userInfo]));
+            }
         }
 
         static clearSession() {
@@ -98,6 +126,12 @@
             State.username = null;
             State.originalRemoveItem.call(localStorage, 'auth_token');
             State.originalRemoveItem.call(localStorage, 'auth_user');
+            
+            // 清除原系统 Key
+            State.originalRemoveItem.call(localStorage, 'ipms_current_user');
+            // ipms_user 这里的处理有争议：是否要清空整个用户库？
+            // 安全起见，只清除 current_user 应该足以触发登出
+            
             // 清除业务数据防止泄露
             localStorage.clear();
         }
@@ -142,9 +176,9 @@
                 // *关键策略*：我们将数据写入到"推测"的 Key，并覆盖可能的旧数据。
                 
                 // 假设前端使用的 Key (根据常见习惯猜测，后续可根据实际情况调整)
-                this.writeToStorage('softwareList', copyrights);
-                this.writeToStorage('paperList', papers);
-                this.writeToStorage('patentList', patents);
+                this.writeToStorage('ipms_softwares', copyrights);
+                this.writeToStorage('ipms_papers', papers);
+                this.writeToStorage('ipms_patents', patents);
                 
                 console.log('[Sync] Pull complete.');
             } catch (e) {
