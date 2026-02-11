@@ -184,6 +184,11 @@
         body.is-locked > div:not(#login-overlay):not(#change-pass-overlay) {
             display: none !important;
         }
+
+        /* 隐藏原有的登录页 */
+        /* 假设原登录页有特定的标识，例如路径是 /login 或者包含某些特征 */
+        /* 由于是单页应用，我们可能需要根据 URL 或 DOM 特征来判断 */
+        /* 暴力隐藏：如果当前是登录页，隐藏 root 中的内容 */
         
         #change-pass-trigger {
             position: fixed;
@@ -215,6 +220,11 @@
 
         // 锁定主页面
         document.body.classList.add('is-locked');
+
+        // 尝试移除 React 挂载点的内容，防止其渲染出原登录页
+        // 注意：这可能会破坏 React 的生命周期，但因为我们接管了登录，所以是可以接受的
+        // const root = document.getElementById('root');
+        // if (root) root.style.display = 'none';
 
         const overlay = document.createElement('div');
         overlay.id = 'login-overlay';
@@ -279,7 +289,12 @@
                     
                     // 延迟刷新，确保 token 写入
                     setTimeout(() => {
-                        window.location.reload();
+                        // 如果 URL 中包含 login，尝试跳转到根路径
+                        if (window.location.href.includes('login')) {
+                            window.location.href = '/';
+                        } else {
+                            window.location.reload();
+                        }
                     }, 500);
                 } else {
                     errorDiv.textContent = data.error || '用户名或密码错误';
