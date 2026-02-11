@@ -494,10 +494,16 @@
 
     // 初始化
     const init = () => {
+        // 重新读取 token，防止闭包中的 token 过期
+        token = localStorage.getItem('auth_token');
+        console.log('[Init] Token found:', token ? token.substring(0, 10) + '...' : 'null');
+        
         // 如果没有 token，立即显示登录页
         if (!token) {
+            console.log('[Init] No token, showing login page');
             showLoginPage();
         } else {
+            console.log('[Init] Token exists, restoring data');
             restoreData();
         }
     };
