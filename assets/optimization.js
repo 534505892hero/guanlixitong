@@ -244,11 +244,11 @@
                 <form id="login-form" onsubmit="handleLoginSubmit(event)">
                     <div class="form-group">
                         <label for="opt-username">用户名</label>
-                        <input type="text" id="opt-username" class="form-input" placeholder="请输入用户名" required autocomplete="username">
+                        <input type="text" id="opt-username" class="form-input" placeholder=" " required autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="opt-password">密码</label>
-                        <input type="password" id="opt-password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
+                        <input type="password" id="opt-password" class="form-input" placeholder=" " required autocomplete="current-password">
                     </div>
                     <button type="submit" class="login-btn">登 录</button>
                     <div id="login-error" class="error-msg"></div>
