@@ -8,38 +8,60 @@
     const DATA_API = `${API_BASE}/data`;
     const CHANGE_PASS_API = `${API_BASE}/change_password`;
 
-    // 样式注入：简洁登录页面
+    // 样式注入：美化登录页面
     const authStyle = document.createElement('style');
     authStyle.textContent = `
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
         #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: #f3f4f6;
+            background: var(--bg-gradient);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 20000;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         .login-card {
-            background: white;
-            padding: 2.5rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .login-header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
         }
         .login-header h2 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #111827;
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: #1f2937;
             margin: 0;
+            letter-spacing: -0.5px;
+        }
+        .login-header p {
+            margin-top: 0.5rem;
+            color: #6b7280;
+            font-size: 0.875rem;
         }
         .form-group {
             margin-bottom: 1.5rem;
+            position: relative;
         }
         .form-group label {
             display: block;
@@ -50,39 +72,59 @@
         }
         .form-input {
             width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
+            padding: 0.875rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
             font-size: 1rem;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
+            background: #f9fafb;
             box-sizing: border-box;
         }
         .form-input:focus {
-            border-color: #2563eb;
-            ring: 2px solid #2563eb;
+            border-color: var(--primary-color);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
         .login-btn {
             width: 100%;
-            padding: 0.75rem;
-            background-color: #2563eb;
+            padding: 0.875rem;
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 1rem;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
+            margin-top: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
         }
         .login-btn:hover {
-            background-color: #1d4ed8;
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+        }
+        .login-btn:active {
+            transform: translateY(0);
         }
         .error-msg {
-            color: #dc2626;
+            color: #ef4444;
             font-size: 0.875rem;
             margin-top: 1rem;
             text-align: center;
+            padding: 0.75rem;
+            background: #fef2f2;
+            border-radius: 6px;
+            border: 1px solid #fee2e2;
             display: none;
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
         /* 隐藏主应用内容 */
         body.is-locked #root,
@@ -118,6 +160,7 @@
             <div class="login-card">
                 <div class="login-header">
                     <h2>山科智能科研管理系统</h2>
+                    <p>请登录以继续访问</p>
                 </div>
                 <form id="login-form" onsubmit="handleLoginSubmit(event)">
                     <div class="form-group">
@@ -146,6 +189,8 @@
             
             errorDiv.style.display = 'none';
             
+            console.log('[Login] Attempting login for:', username);
+            
             try {
                 const res = await fetch(LOGIN_API, {
                     method: 'POST',
@@ -153,7 +198,9 @@
                     body: JSON.stringify({ username, password })
                 });
                 
+                console.log('[Login] Response status:', res.status);
                 const data = await res.json();
+                console.log('[Login] Response data:', data);
                 
                 if (res.ok) {
                     token = data.token;
