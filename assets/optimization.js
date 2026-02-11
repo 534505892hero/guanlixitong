@@ -317,6 +317,8 @@
                 .sys-trigger { position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: white; padding: 8px 15px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; font-size: 14px; color: #333; }
                 .sys-trigger span:hover { color: var(--tech-blue); text-decoration: underline; }
                 #root.hidden { display: none !important; }
+                /* 确保 root 始终占满屏幕，避免高度为 0 */
+                #root { min-height: 100vh; width: 100%; }
             `;
             const style = document.createElement('style');
             style.textContent = css;
@@ -459,6 +461,12 @@
                         // 否则一律显示
                         root.classList.remove('hidden');
                         root.style.display = 'block';
+                        
+                        // 暴力修正：有些情况下 React 可能因为 hidden 类而没有渲染高度
+                        if (root.offsetHeight === 0) {
+                            root.style.height = '100vh';
+                            root.style.width = '100vw';
+                        }
                     }
                 } else {
                     // 未登录，且是原登录页，隐藏（显示我们的 Overlay）
@@ -477,4 +485,18 @@
     } else {
         UI.init();
     }
+
+    // 最后的保险：3秒后如果还是白屏，强制显示 root
+    setTimeout(() => {
+        if (State.token) {
+            const root = document.getElementById('root');
+            if (root) {
+                console.log('[Failsafe] Forcing root visibility...');
+                root.classList.remove('hidden');
+                root.style.display = 'block';
+                root.style.opacity = '1';
+                root.style.visibility = 'visible';
+            }
+        }
+    }, 3000);
 })();
