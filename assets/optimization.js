@@ -57,15 +57,32 @@
                 const data = await res.json();
                 
                 if (res.ok) {
+                    console.log('[Auth] Login successful, server response:', data);
+                    
+                    console.log('[Auth] Pre-injection Storage:', {
+                        local: { ...localStorage },
+                        session: { ...sessionStorage }
+                    });
+
                     this.setSession(data.token, data.username);
                     await DataManager.syncDown(); 
                     
+                    console.log('[Auth] Post-injection Storage:', {
+                        local: { ...localStorage },
+                        session: { ...sessionStorage }
+                    });
+
                     // 登录成功后，不再只依靠 reload，而是尝试手动触发 React 路由跳转
                     // 假设 React 使用的是 HashRouter，我们直接修改 Hash
+                    console.log('[Auth] Attempting redirect. Current Hash:', window.location.hash);
                     window.location.hash = '/'; 
+                    console.log('[Auth] Hash set to /. New Hash:', window.location.hash);
+
                     // 延迟刷新，让 hash change 事件有时间触发，或者直接替换 reload
                     setTimeout(() => {
-                        window.location.replace(window.location.origin + window.location.pathname);
+                        const target = window.location.origin + window.location.pathname;
+                        console.log('[Auth] Triggering location.replace to:', target);
+                        window.location.replace(target);
                     }, 500); // 增加延时到 500ms
                 } else {
                     throw new Error(data.error || '登录失败');
