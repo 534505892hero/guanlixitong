@@ -508,6 +508,13 @@
         token = localStorage.getItem('auth_token');
         console.log('[Init] Token found:', token ? token.substring(0, 10) + '...' : 'null');
         
+        // 强制重定向：如果已登录但 URL 在登录页，跳回主页
+        if (token && window.location.href.includes('login')) {
+            console.log('[Init] Token exists but on login page, redirecting to root...');
+            window.location.href = '/';
+            return;
+        }
+
         // 如果没有 token，立即显示登录页
         if (!token) {
             console.log('[Init] No token, showing login page');
@@ -515,6 +522,25 @@
         } else {
             console.log('[Init] Token exists, restoring data');
             restoreData();
+            
+            // 暴力隐藏原登录页内容：监控 #root 的变化，如果出现登录特征，隐藏它
+            const observer = new MutationObserver(() => {
+                const root = document.getElementById('root');
+                if (!root) return;
+                
+                // 检查是否包含原登录页的特征 (比如 "用户登录" 文本)
+                if (root.innerText.includes('用户登录') || root.innerText.includes('请输入您的账号和密码')) {
+                    console.log('[Anti-Login] Detected original login page, hiding it...');
+                    root.style.display = 'none';
+                    // 再次尝试跳转
+                    if (window.location.pathname !== '/' && window.location.hash !== '#/') {
+                         window.location.href = '/';
+                    }
+                } else {
+                    root.style.display = 'block';
+                }
+            });
+            observer.observe(document.getElementById('root'), { childList: true, subtree: true });
         }
     };
 
