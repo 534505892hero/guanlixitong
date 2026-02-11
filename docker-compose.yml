@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # 1. 本项目：山科智能科研管理系统
+  kimi-agent:
+    build: .
+    container_name: kimi-agent-app
+    ports:
+      - "9527:9527"
+    volumes:
+      - ./app_data.db:/app/app_data.db
+    restart: always
+    networks:
+      - app-network
+
+  # 2. OpenClaw (示例配置，请根据官方文档调整)
+  # 注意：由于未找到官方 OpenClaw 镜像，此处假设使用 generic-node 或用户需自行构建
+  # 如果您指的是 "OpenCrawl" 或其他工具，请替换 image
+  # 这里以一个通用的占位符展示如何集成
+  openclaw:
+    image: node:18-alpine # 占位，请替换为真实 OpenClaw 镜像
+    container_name: openclaw-app
+    # command: npm start # 启动命令
+    ports:
+      - "3000:3000" # 假设 OpenClaw 运行在 3000
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - openclaw-data:/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  openclaw-data:

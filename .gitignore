@@ -1,0 +1,13 @@
+# Ignore database
+app_data.db
+
+# Ignore compiled python files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore local system files
+.DS_Store
+
+# Ignore Trae metadata
+.trae/
