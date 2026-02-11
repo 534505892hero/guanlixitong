@@ -65,8 +65,8 @@
                     window.location.hash = '/'; 
                     // 延迟刷新，让 hash change 事件有时间触发，或者直接替换 reload
                     setTimeout(() => {
-                        window.location.reload(); 
-                    }, 100);
+                        window.location.replace(window.location.origin + window.location.pathname);
+                    }, 500); // 增加延时到 500ms
                 } else {
                     throw new Error(data.error || '登录失败');
                 }
@@ -102,7 +102,9 @@
             
             // 2. 注入原 React 应用所需的 Key，使其认为已登录
             // 根据逆向工程发现的 Key: KEYS.CURRENT_USER = "ipms_current_user", KEYS.USER = "ipms_user"
+            // 同时设置 sessionStorage 以防万一
             State.originalSetItem.call(localStorage, 'ipms_current_user', username);
+            sessionStorage.setItem('ipms_current_user', username);
             
             // 尝试构造 ipms_user (可能包含用户列表或当前用户详情)
             // 为了安全起见，我们构造一个包含当前用户的对象/数组
@@ -121,13 +123,19 @@
                     const idx = oldUsers.findIndex(u => u.username === username);
                     if (idx > -1) oldUsers[idx] = userInfo;
                     else oldUsers.push(userInfo);
-                    State.originalSetItem.call(localStorage, 'ipms_user', JSON.stringify(oldUsers));
+                    const userStr = JSON.stringify(oldUsers);
+                    State.originalSetItem.call(localStorage, 'ipms_user', userStr);
+                    sessionStorage.setItem('ipms_user', userStr);
                 } else {
                     // 如果不是数组，可能就是单个对象
-                     State.originalSetItem.call(localStorage, 'ipms_user', JSON.stringify(userInfo));
+                     const userStr = JSON.stringify(userInfo);
+                     State.originalSetItem.call(localStorage, 'ipms_user', userStr);
+                     sessionStorage.setItem('ipms_user', userStr);
                 }
             } catch(e) {
-                 State.originalSetItem.call(localStorage, 'ipms_user', JSON.stringify([userInfo]));
+                 const userStr = JSON.stringify([userInfo]);
+                 State.originalSetItem.call(localStorage, 'ipms_user', userStr);
+                 sessionStorage.setItem('ipms_user', userStr);
             }
         }
 
@@ -139,11 +147,13 @@
             
             // 清除原系统 Key
             State.originalRemoveItem.call(localStorage, 'ipms_current_user');
+            sessionStorage.removeItem('ipms_current_user');
             // ipms_user 这里的处理有争议：是否要清空整个用户库？
             // 安全起见，只清除 current_user 应该足以触发登出
             
             // 清除业务数据防止泄露
             localStorage.clear();
+            sessionStorage.clear();
         }
 
         static async changePassword(oldPass, newPass) {
