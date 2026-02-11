@@ -102,7 +102,13 @@
             
             // 尝试构造 ipms_user (可能包含用户列表或当前用户详情)
             // 为了安全起见，我们构造一个包含当前用户的对象/数组
-            const userInfo = { username: username, role: 'admin', lastLogin: new Date().toISOString() };
+            // 增加 name 字段以防止 .trim() 错误
+            const userInfo = { 
+                username: username, 
+                name: username, // 兼容性：某些系统可能使用 name
+                role: 'admin', 
+                lastLogin: new Date().toISOString() 
+            };
             // 如果原系统将其视为用户库(Array)，我们先读取旧的
             try {
                 const oldUsers = JSON.parse(localStorage.getItem('ipms_user') || '[]');
@@ -176,14 +182,37 @@
                 // *关键策略*：我们将数据写入到"推测"的 Key，并覆盖可能的旧数据。
                 
                 // 假设前端使用的 Key (根据常见习惯猜测，后续可根据实际情况调整)
-                this.writeToStorage('ipms_softwares', copyrights);
-                this.writeToStorage('ipms_papers', papers);
-                this.writeToStorage('ipms_patents', patents);
+                this.writeToStorage('ipms_softwares', this.normalizeData(copyrights, 'copyrights'));
+                this.writeToStorage('ipms_papers', this.normalizeData(papers, 'papers'));
+                this.writeToStorage('ipms_patents', this.normalizeData(patents, 'patents'));
                 
                 console.log('[Sync] Pull complete.');
             } catch (e) {
                 console.error('[Sync] Pull failed:', e);
             }
+        }
+
+        static normalizeData(list, type) {
+            if (!Array.isArray(list)) return [];
+            return list.map(item => {
+                const newItem = { ...item };
+                // 兼容性处理：前端可能统一使用 name 字段，而数据库中论文/专利使用 title
+                if (!newItem.name && newItem.title) {
+                    newItem.name = newItem.title;
+                }
+                // 反之亦然，确保双向兼容
+                if (!newItem.title && newItem.name) {
+                    newItem.title = newItem.name;
+                }
+                
+                // 确保关键字符串字段不为 null/undefined，防止 .trim() 报错
+                ['name', 'title', 'username'].forEach(key => {
+                    if (newItem[key] === null || newItem[key] === undefined) {
+                        newItem[key] = '';
+                    }
+                });
+                return newItem;
+            });
         }
 
         static async fetchList(url) {
@@ -252,7 +281,10 @@
 
         static async processAndPush(type, list) {
             console.log(`[Sync] Processing ${type}...`);
-            const processedList = await Promise.all(list.map(item => this.processItemFiles(type, item)));
+            // 预处理：确保字段兼容性 (name <-> title)
+            const normalizedList = this.normalizeData(list, type);
+            
+            const processedList = await Promise.all(normalizedList.map(item => this.processItemFiles(type, item)));
             
             let url = '';
             if (type === 'copyrights') url = CONFIG.API.COPYRIGHTS;
