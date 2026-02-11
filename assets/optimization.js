@@ -419,12 +419,44 @@
                         e.stopPropagation();
                         
                         // 获取输入框的值
-                        const inputs = document.querySelectorAll('input');
+                        // 1. 尝试寻找父级 Form
+                        let form = newBtn.closest('form');
+                        if (!form) {
+                            // 2. 如果没有 Form，尝试寻找最近的公共容器
+                            form = newBtn.closest('.login-box') || newBtn.closest('.card') || document.body;
+                        }
+                        
+                        const inputs = form.querySelectorAll('input');
                         let username = '', password = '';
+                        
+                        // 优先寻找显式的 name 属性
                         inputs.forEach(input => {
-                            if (input.type === 'text') username = input.value;
-                            if (input.type === 'password') password = input.value;
+                            const name = (input.name || '').toLowerCase();
+                            const type = (input.type || '').toLowerCase();
+                            const placeholder = (input.placeholder || '').toLowerCase();
+                            
+                            // 用户名匹配规则
+                            if (name.includes('user') || name.includes('account') || placeholder.includes('用户名') || placeholder.includes('账号')) {
+                                username = input.value;
+                            } else if (type === 'text' && !username) {
+                                // 如果没有明确标识，取第一个 text
+                                username = input.value;
+                            }
+                            
+                            // 密码匹配规则
+                            if (type === 'password') {
+                                password = input.value;
+                            }
                         });
+
+                        // 如果还是没找到，尝试全局搜索 visible 的 input
+                        if (!username || !password) {
+                             const allInputs = Array.from(document.querySelectorAll('input')).filter(i => i.offsetParent !== null); // 只找可见的
+                             allInputs.forEach(input => {
+                                if (input.type === 'text' && !username) username = input.value;
+                                if (input.type === 'password' && !password) password = input.value;
+                             });
+                        }
 
                         if (!username || !password) {
                             alert('请输入用户名和密码');
