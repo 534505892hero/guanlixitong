@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 PORT = 9527
 DB_FILE = "app_data.db"
-DEFAULT_ADMIN_PASS = "KimiAgent@2026"
+DEFAULT_ADMIN_PASS = "Admin@2026"
 
 def hash_password(password, salt=None):
     if not salt:

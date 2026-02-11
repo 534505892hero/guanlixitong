@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   # 1. 本项目：山科智能科研管理系统
-  kimi-agent:
+  sk-research-system:
     build: .
-    container_name: kimi-agent-app
+    container_name: sk-research-app
     ports:
       - "9527:9527"
     volumes:
