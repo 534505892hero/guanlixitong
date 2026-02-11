@@ -85,9 +85,9 @@
             display: none;
         }
         /* 隐藏主应用内容 */
-        body.is-locked > *:not(#login-overlay) {
-            filter: blur(5px);
-            pointer-events: none;
+        body.is-locked #root,
+        body.is-locked > div:not(#login-overlay):not(#change-pass-overlay) {
+            display: none !important;
         }
         
         #change-pass-trigger {
