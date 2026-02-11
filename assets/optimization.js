@@ -5,6 +5,8 @@
 // ==========================================
 
 (function() {
+    console.log('[Optimization] Script Loaded v3.1 - ' + new Date().toISOString());
+
     // --- 配置常量 ---
     // 使用相对路径，自动适配当前域名和端口，解决跨域(CORS)和防火墙端口限制问题
     // 前提：
@@ -430,85 +432,83 @@
              observer.observe(document.body, { childList: true, subtree: true });
         }
 
-        // 核心：劫持原生登录逻辑
+        // 核心：劫持原生登录逻辑 (使用事件捕获，更强效)
         static hijackLogin() {
-            const observer = new MutationObserver(() => {
-                // 寻找登录按钮（根据类名或结构特征）
-                // 假设是那个绿色的 "登录" 按钮
-                const loginBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('登录'));
-                if (loginBtn && !loginBtn.dataset.hijacked) {
-                    console.log('[Hijack] Login button found, taking control...');
-                    loginBtn.dataset.hijacked = 'true';
+            window.addEventListener('click', async (e) => {
+                const target = e.target;
+                // 宽松匹配登录按钮：是按钮，且包含"登录"字样
+                const isLoginBtn = (target.tagName === 'BUTTON' || target.closest('button')) && 
+                                   target.innerText.includes('登录');
+                
+                if (isLoginBtn) {
+                    console.log('[Hijack] Click captured on login button');
                     
-                    // 克隆按钮以移除 React 事件绑定
-                    const newBtn = loginBtn.cloneNode(true);
-                    loginBtn.parentNode.replaceChild(newBtn, loginBtn);
+                    // 阻止 React 事件处理
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
                     
-                    // 绑定我们自己的逻辑
-                    newBtn.onclick = async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                    // 获取按钮元素 (可能是 target 或其父级)
+                    const btn = target.tagName === 'BUTTON' ? target : target.closest('button');
+                    
+                    // 1. 尝试寻找父级 Form
+                    let form = btn.closest('form');
+                    if (!form) {
+                        // 2. 如果没有 Form，尝试寻找最近的公共容器
+                        form = btn.closest('.login-box') || btn.closest('.card') || document.body;
+                    }
+                    
+                    const inputs = form.querySelectorAll('input');
+                    let username = '', password = '';
+                    
+                    // 优先寻找显式的 name 属性
+                    inputs.forEach(input => {
+                        const name = (input.name || '').toLowerCase();
+                        const type = (input.type || '').toLowerCase();
+                        const placeholder = (input.placeholder || '').toLowerCase();
                         
-                        // 获取输入框的值
-                        // 1. 尝试寻找父级 Form
-                        let form = newBtn.closest('form');
-                        if (!form) {
-                            // 2. 如果没有 Form，尝试寻找最近的公共容器
-                            form = newBtn.closest('.login-box') || newBtn.closest('.card') || document.body;
+                        // 用户名匹配规则
+                        if (name.includes('user') || name.includes('account') || placeholder.includes('用户名') || placeholder.includes('账号')) {
+                            username = input.value;
+                        } else if (type === 'text' && !username) {
+                            // 如果没有明确标识，取第一个 text
+                            username = input.value;
                         }
                         
-                        const inputs = form.querySelectorAll('input');
-                        let username = '', password = '';
-                        
-                        // 优先寻找显式的 name 属性
-                        inputs.forEach(input => {
-                            const name = (input.name || '').toLowerCase();
-                            const type = (input.type || '').toLowerCase();
-                            const placeholder = (input.placeholder || '').toLowerCase();
-                            
-                            // 用户名匹配规则
-                            if (name.includes('user') || name.includes('account') || placeholder.includes('用户名') || placeholder.includes('账号')) {
-                                username = input.value;
-                            } else if (type === 'text' && !username) {
-                                // 如果没有明确标识，取第一个 text
-                                username = input.value;
-                            }
-                            
-                            // 密码匹配规则
-                            if (type === 'password') {
-                                password = input.value;
-                            }
-                        });
-
-                        // 如果还是没找到，尝试全局搜索 visible 的 input
-                        if (!username || !password) {
-                             const allInputs = Array.from(document.querySelectorAll('input')).filter(i => i.offsetParent !== null); // 只找可见的
-                             allInputs.forEach(input => {
-                                if (input.type === 'text' && !username) username = input.value;
-                                if (input.type === 'password' && !password) password = input.value;
-                             });
+                        // 密码匹配规则
+                        if (type === 'password') {
+                            password = input.value;
                         }
+                    });
 
-                        if (!username || !password) {
-                            alert('请输入用户名和密码');
-                            return;
-                        }
+                    // 如果还是没找到，尝试全局搜索 visible 的 input
+                    if (!username || !password) {
+                            const allInputs = Array.from(document.querySelectorAll('input')).filter(i => i.offsetParent !== null); // 只找可见的
+                            allInputs.forEach(input => {
+                            if (input.type === 'text' && !username) username = input.value;
+                            if (input.type === 'password' && !password) password = input.value;
+                            });
+                    }
 
-                        // 修改按钮状态
-                        const originalText = newBtn.textContent;
-                        newBtn.textContent = '登录中...';
-                        newBtn.disabled = true;
+                    if (!username || !password) {
+                        alert('请输入用户名和密码');
+                        return;
+                    }
 
-                        try {
-                            await AuthService.login(username, password);
-                        } catch (err) {
-                            newBtn.textContent = originalText;
-                            newBtn.disabled = false;
-                        }
-                    };
+                    // 修改按钮状态
+                    const originalText = btn.textContent;
+                    btn.textContent = '登录中...';
+                    btn.disabled = true;
+
+                    try {
+                        await AuthService.login(username, password);
+                    } catch (err) {
+                        console.error('[Hijack] Login failed:', err);
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                        alert('登录失败: ' + err.message);
+                    }
                 }
-            });
-            observer.observe(document.body, { childList: true, subtree: true });
+            }, true); // Use Capture Phase to intercept before React
         }
 
         static hideLogin() {
