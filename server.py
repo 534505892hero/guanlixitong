@@ -10,7 +10,9 @@ import base64
 from urllib.parse import urlparse
 
 PORT = int(os.environ.get('PORT', 80))
-DB_FILE = "app_data.db"
+# Ensure DB file is in the same directory as the script
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(BASE_DIR, "app_data.db")
 DEFAULT_ADMIN_PASS = "Admin@2026"
 
 def hash_password(password, salt=None):
@@ -71,6 +73,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def check_auth(self):
         auth_header = self.headers.get('Authorization')
         if not auth_header or not auth_header.startswith('Bearer '):
+            print(f"[-] Auth failed: Missing or invalid header: {auth_header}")
             return False
         token = auth_header.split(' ')[1]
         
@@ -79,7 +82,13 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         c.execute("SELECT username FROM admin_auth WHERE token=?", (token,))
         user = c.fetchone()
         conn.close()
-        return user is not None
+        
+        if user:
+            # print(f"[+] Auth success for user: {user[0]}")
+            return True
+        else:
+            print(f"[-] Auth failed: Invalid token {token[:10]}...")
+            return False
 
     def do_GET(self):
         parsed_path = urlparse(self.path)

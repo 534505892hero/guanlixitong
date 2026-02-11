@@ -442,7 +442,17 @@
             });
             
             if (response.status === 401) {
-                logout();
+                console.error('[DB Sync] Auth failed (401). Token might be invalid.');
+                // 暂时不自动登出，而是显示错误，方便调试
+                // logout();
+                if (document.getElementById('login-overlay')) return; // 已经在登录页则忽略
+                
+                // 显示一个小提示
+                const debugMsg = document.createElement('div');
+                debugMsg.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:red;color:white;padding:5px 10px;z-index:99999;border-radius:4px;font-size:12px;';
+                debugMsg.textContent = '会话已过期，请手动退出重新登录';
+                document.body.appendChild(debugMsg);
+                setTimeout(() => debugMsg.remove(), 5000);
                 return;
             }
 
