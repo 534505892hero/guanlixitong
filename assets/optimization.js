@@ -277,9 +277,10 @@
                     overlay.remove();
                     document.body.classList.remove('is-locked');
                     
-                    // 同步数据并刷新
-                    await restoreData();
-                    window.location.reload();
+                    // 延迟刷新，确保 token 写入
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
                 } else {
                     errorDiv.textContent = data.error || '用户名或密码错误';
                     errorDiv.style.display = 'block';
