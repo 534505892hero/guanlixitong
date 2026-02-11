@@ -63,7 +63,10 @@
                     // 登录成功后，不再只依靠 reload，而是尝试手动触发 React 路由跳转
                     // 假设 React 使用的是 HashRouter，我们直接修改 Hash
                     window.location.hash = '/'; 
-                    window.location.reload(); 
+                    // 延迟刷新，让 hash change 事件有时间触发，或者直接替换 reload
+                    setTimeout(() => {
+                        window.location.reload(); 
+                    }, 100);
                 } else {
                     throw new Error(data.error || '登录失败');
                 }
@@ -601,9 +604,20 @@
 
     // --- 启动 ---
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => UI.init());
+        document.addEventListener('DOMContentLoaded', () => {
+            UI.init();
+            // 额外检查：如果已登录但在登录页，尝试跳转
+            if (State.token && window.location.href.includes('login')) {
+                 window.location.hash = '/';
+                 window.location.reload();
+            }
+        });
     } else {
         UI.init();
+        if (State.token && window.location.href.includes('login')) {
+             window.location.hash = '/';
+             window.location.reload();
+        }
     }
 
     // 最后的保险：3秒后如果Token存在，强制移除 hidden 类，防止误判
