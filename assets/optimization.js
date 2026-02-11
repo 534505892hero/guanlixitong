@@ -314,8 +314,23 @@
                     else DataManager.syncDown();
                 }).catch(() => {});
                 
-                this.addLogoutButton();
+                // 只有在确定不在登录页时才显示 Logout
+                this.checkAndShowLogout();
             }
+        }
+        
+        static checkAndShowLogout() {
+             const observer = new MutationObserver(() => {
+                 const isLoginPage = document.querySelector('input[type="password"]') !== null;
+                 const trigger = document.getElementById('sys-trigger');
+                 if (isLoginPage) {
+                     if (trigger) trigger.style.display = 'none';
+                 } else {
+                     if (trigger) trigger.style.display = 'block';
+                     else this.addLogoutButton();
+                 }
+             });
+             observer.observe(document.body, { childList: true, subtree: true });
         }
 
         // 核心：劫持原生登录逻辑
@@ -388,15 +403,14 @@
             const div = document.createElement('div');
             div.id = 'sys-trigger';
             div.className = 'sys-trigger';
+            // 移除 "修改密码"
             div.innerHTML = `
                 <span>${State.username || 'User'}</span> | 
-                <span id="btn-cp">修改密码</span> | 
                 <span id="btn-logout">退出</span>
             `;
             document.body.appendChild(div);
 
             document.getElementById('btn-logout').onclick = () => AuthService.logout();
-            document.getElementById('btn-cp').onclick = () => this.showChangePass();
         }
 
         static showChangePass() {
