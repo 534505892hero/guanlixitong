@@ -446,33 +446,23 @@
                 const root = document.getElementById('root');
                 if (!root) return;
 
-                // 优先检查是否应该显示：只要已登录且 Token 验证通过，就显示
-                if (State.token) {
-                    // 如果内容包含原登录页特征，才隐藏
-                    if (root.innerText.includes('用户登录') || root.innerText.includes('请输入您的账号和密码')) {
-                        root.classList.add('hidden');
-                        root.style.display = 'none';
-                        // 强制跳转主页
-                        if (!window.location.href.endsWith('/') && !window.location.hash.startsWith('#/')) {
-                            console.log('[RouterGuard] Redirecting to root...');
-                            window.location.href = '/';
-                        }
+                // 如果内容包含原登录页特征，才隐藏
+                if (root.innerText.includes('用户登录') || root.innerText.includes('请输入您的账号和密码')) {
+                    if (State.token) {
+                         // 已登录但显示登录页 -> 隐藏并跳转
+                         root.classList.add('hidden');
+                         if (!window.location.href.endsWith('/') && !window.location.hash.startsWith('#/')) {
+                             window.location.href = '/';
+                         }
                     } else {
-                        // 否则一律显示
-                        root.classList.remove('hidden');
-                        root.style.display = 'block';
-                        
-                        // 暴力修正：有些情况下 React 可能因为 hidden 类而没有渲染高度
-                        if (root.offsetHeight === 0) {
-                            root.style.height = '100vh';
-                            root.style.width = '100vw';
-                        }
-                    }
-                } else {
-                    // 未登录，且是原登录页，隐藏（显示我们的 Overlay）
-                    if (root.innerText.includes('用户登录') || root.innerText.includes('请输入您的账号和密码')) {
+                         // 未登录 -> 隐藏原登录页 (显示我们的 Overlay)
                          root.classList.add('hidden');
                     }
+                } else {
+                    // 只要不是登录页内容，无论是否登录，都显示
+                    // (未登录时，Overlay 会盖在上面；已登录时，显示主页)
+                    root.classList.remove('hidden');
+                    root.style.display = 'block';
                 }
             });
             observer.observe(document.body, { childList: true, subtree: true });
@@ -486,17 +476,14 @@
         UI.init();
     }
 
-    // 最后的保险：3秒后如果还是白屏，强制显示 root
+    // 最后的保险：3秒后如果Token存在，强制移除 hidden 类，防止误判
     setTimeout(() => {
         if (State.token) {
-            const root = document.getElementById('root');
-            if (root) {
-                console.log('[Failsafe] Forcing root visibility...');
-                root.classList.remove('hidden');
-                root.style.display = 'block';
-                root.style.opacity = '1';
-                root.style.visibility = 'visible';
-            }
+             const root = document.getElementById('root');
+             if (root) {
+                 root.classList.remove('hidden');
+                 root.style.display = 'block';
+             }
         }
     }, 3000);
 })();
