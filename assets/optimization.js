@@ -90,25 +90,20 @@
         }
 
         .form-group {
-            margin-bottom: 1.75rem;
-            position: relative;
+            margin-bottom: 1.5rem;
         }
 
         .form-group label {
-            position: absolute;
-            left: 1rem;
-            top: 1rem;
+            display: block;
+            margin-bottom: 0.5rem;
             color: #94a3b8;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-            pointer-events: none;
-            background: transparent;
-            padding: 0 0.25rem;
+            font-size: 0.95rem;
+            font-weight: 500;
         }
 
         .form-input {
             width: 100%;
-            padding: 1rem 1rem;
+            padding: 0.8rem 1rem;
             border: 1px solid #334155;
             border-radius: 12px;
             font-size: 1rem;
@@ -123,17 +118,6 @@
             border-color: var(--tech-blue-light);
             background: rgba(15, 23, 42, 0.8);
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-        }
-
-        /* Floating Label Logic */
-        .form-input:focus ~ label,
-        .form-input:not(:placeholder-shown) ~ label {
-            top: -0.6rem;
-            left: 0.8rem;
-            font-size: 0.8rem;
-            color: var(--tech-accent);
-            background: #1e293b; 
-            font-weight: 600;
         }
 
         .login-btn {
@@ -244,11 +228,11 @@
                 <form id="login-form" onsubmit="handleLoginSubmit(event)">
                     <div class="form-group">
                         <label for="opt-username">用户名</label>
-                        <input type="text" id="opt-username" class="form-input" placeholder=" " required autocomplete="username">
+                        <input type="text" id="opt-username" class="form-input" required autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="opt-password">密码</label>
-                        <input type="password" id="opt-password" class="form-input" placeholder=" " required autocomplete="current-password">
+                        <input type="password" id="opt-password" class="form-input" required autocomplete="current-password">
                     </div>
                     <button type="submit" class="login-btn">登 录</button>
                     <div id="login-error" class="error-msg"></div>
