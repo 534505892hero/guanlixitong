@@ -113,10 +113,17 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         try:
             length = int(self.headers['Content-Length'])
             body = json.loads(self.rfile.read(length))
+            username = body.get('username')
             password = body.get('password')
             
             conn = sqlite3.connect(DB_FILE)
             c = conn.cursor()
+            # 支持 admin 用户名登录
+            if username != 'admin':
+                self.send_json({"error": "Invalid username"}, 401)
+                conn.close()
+                return
+
             c.execute("SELECT salt, password_hash FROM admin_auth WHERE username='admin'")
             row = c.fetchone()
             

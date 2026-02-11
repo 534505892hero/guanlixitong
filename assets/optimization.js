@@ -138,6 +138,8 @@
         // 全局暴露处理函数
         window.handleLoginSubmit = async (e) => {
             e.preventDefault();
+            e.stopPropagation(); // 阻止事件冒泡，防止 React 应用捕获
+            
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('login-error');
@@ -171,8 +173,16 @@
         };
     }
 
-    // 显示修改密码界面 (简单复用登录样式，实际项目可做单独页面)
-    function showChangePassModal() {
+    // 全局暴露 Logout
+    window.logout = function() {
+        token = null;
+        localStorage.removeItem('auth_token');
+        document.getElementById('change-pass-overlay')?.remove();
+        showLoginPage();
+    };
+
+    // 显示修改密码界面 (挂载到 window 以便 onclick 调用)
+    window.showChangePassModal = function() {
         if (!token) return;
         
         const existing = document.getElementById('change-pass-overlay');
@@ -185,33 +195,56 @@
             background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 20001;
         `;
         
+        // 阻止点击背景冒泡
+        overlay.onclick = (e) => e.stopPropagation();
+        
         overlay.innerHTML = `
             <div class="login-card" style="position: relative;">
-                <button onclick="this.closest('#change-pass-overlay').remove()" style="position: absolute; right: 15px; top: 10px; border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
+                <button id="close-cp-btn" style="position: absolute; right: 15px; top: 10px; border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
                 <div class="login-header">
                     <h2>修改密码</h2>
                 </div>
-                <form onsubmit="handleChangePassSubmit(event)">
+                <form id="cp-form">
                     <div class="form-group">
                         <label>旧密码</label>
-                        <input type="password" id="old-pass" class="form-input" required>
+                        <input type="password" id="old-pass" class="form-input" required autocomplete="current-password">
                     </div>
                     <div class="form-group">
                         <label>新密码</label>
-                        <input type="password" id="new-pass" class="form-input" required minlength="6">
+                        <input type="password" id="new-pass" class="form-input" required minlength="6" autocomplete="new-password">
                     </div>
-                    <button type="submit" class="login-btn">确认修改</button>
+                    <button type="submit" id="cp-submit-btn" class="login-btn">确认修改</button>
+                    <div id="cp-msg" class="error-msg" style="color: green; display: none;"></div>
                     <div id="cp-error" class="error-msg"></div>
                 </form>
             </div>
         `;
         document.body.appendChild(overlay);
+        
+        // 绑定关闭按钮
+        document.getElementById('close-cp-btn').onclick = (e) => {
+            e.stopPropagation();
+            overlay.remove();
+        };
 
-        window.handleChangePassSubmit = async (e) => {
+        // 绑定表单提交
+        const form = document.getElementById('cp-form');
+        const submitBtn = document.getElementById('cp-submit-btn');
+        const errorDiv = document.getElementById('cp-error');
+        const msgDiv = document.getElementById('cp-msg');
+
+        form.onsubmit = async (e) => {
             e.preventDefault();
+            e.stopPropagation(); // 阻止事件冒泡
+            
             const oldPass = document.getElementById('old-pass').value;
             const newPass = document.getElementById('new-pass').value;
-            const errorDiv = document.getElementById('cp-error');
+            
+            // 重置状态
+            errorDiv.style.display = 'none';
+            msgDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = '提交中...';
 
             try {
                 const res = await fetch(CHANGE_PASS_API, {
@@ -226,25 +259,31 @@
                 const data = await res.json();
                 
                 if (res.ok) {
-                    alert('密码修改成功，请重新登录');
-                    logout();
+                    msgDiv.textContent = '密码修改成功，即将跳转登录...';
+                    msgDiv.style.display = 'block';
+                    msgDiv.style.color = 'green';
+                    
+                    // 延迟跳转
+                    setTimeout(() => {
+                        window.logout();
+                    }, 1500);
                 } else {
-                    errorDiv.textContent = data.error || '修改失败';
+                    errorDiv.textContent = data.error || '修改失败，请重试';
                     errorDiv.style.display = 'block';
+                    // 恢复按钮状态，允许再次提交
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '确认修改';
                 }
             } catch (err) {
-                errorDiv.textContent = '网络错误';
+                console.error('Change password error:', err);
+                errorDiv.textContent = '网络错误，请检查连接';
                 errorDiv.style.display = 'block';
+                // 恢复按钮状态
+                submitBtn.disabled = false;
+                submitBtn.textContent = '确认修改';
             }
         };
-    }
-
-    function logout() {
-        token = null;
-        localStorage.removeItem('auth_token');
-        document.getElementById('change-pass-overlay')?.remove();
-        showLoginPage();
-    }
+    };
 
     // 添加修改密码入口
     function addChangePassTrigger() {
@@ -409,8 +448,22 @@
         }
 
         const observer = new MutationObserver((mutations) => {
-            // 简单防抖，避免频繁执行
-            optimizeListItems();
+            // 过滤掉我们自己的 UI 变化，避免无限循环或不必要的处理
+            const shouldProcess = mutations.some(mutation => {
+                if (mutation.type !== 'childList') return false;
+                // 检查添加的节点是否是我们自己的模态框
+                for (let node of mutation.addedNodes) {
+                    if (node.id === 'login-overlay' || node.id === 'change-pass-overlay' || node.id === 'auth-modal') {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            if (shouldProcess) {
+                // 简单防抖，避免频繁执行
+                optimizeListItems();
+            }
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
