@@ -6,11 +6,12 @@
 
 (function() {
     // --- 配置常量 ---
-    // 动态获取当前主机地址，适配不同的运行环境 (localhost, 127.0.0.1, IP)
+    // 使用相对路径，自动适配当前域名和端口，解决跨域(CORS)和防火墙端口限制问题
+    // 前提：
+    // 1. 如果是 Nginx 反向代理：Nginx 需监听 80，将 /api 转发到后端端口
+    // 2. 如果是 Python 直接部署：需使用 sudo python3 server.py 监听 80 端口
     const getBaseUrl = () => {
-        const port = 8089; // 后端固定端口
-        const hostname = window.location.hostname;
-        return `http://${hostname}:${port}`;
+        return ''; // 使用相对路径
     };
     
     const BASE_URL = getBaseUrl();
