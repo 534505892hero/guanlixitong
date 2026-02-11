@@ -164,12 +164,12 @@
                 </div>
                 <form id="login-form" onsubmit="handleLoginSubmit(event)">
                     <div class="form-group">
-                        <label for="username">用户名</label>
-                        <input type="text" id="username" class="form-input" placeholder="请输入用户名" required autocomplete="username">
+                        <label for="opt-username">用户名</label>
+                        <input type="text" id="opt-username" class="form-input" placeholder="请输入用户名" required autocomplete="username">
                     </div>
                     <div class="form-group">
-                        <label for="password">密码</label>
-                        <input type="password" id="password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
+                        <label for="opt-password">密码</label>
+                        <input type="password" id="opt-password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
                     </div>
                     <button type="submit" class="login-btn">登 录</button>
                     <div id="login-error" class="error-msg"></div>
@@ -183,8 +183,8 @@
             e.preventDefault();
             e.stopPropagation(); // 阻止事件冒泡，防止 React 应用捕获
             
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            const username = document.getElementById('opt-username').value;
+            const password = document.getElementById('opt-password').value;
             const errorDiv = document.getElementById('login-error');
             
             errorDiv.style.display = 'none';
