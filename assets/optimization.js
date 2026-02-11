@@ -8,124 +8,193 @@
     const DATA_API = `${API_BASE}/data`;
     const CHANGE_PASS_API = `${API_BASE}/change_password`;
 
-    // 样式注入：美化登录页面
+    // 样式注入：美化登录页面 (Tech Blue Theme)
     const authStyle = document.createElement('style');
     authStyle.textContent = `
         :root {
-            --primary-color: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            --tech-blue-dark: #0f172a;
+            --tech-blue-light: #3b82f6;
+            --tech-accent: #0ea5e9;
+            --glass-bg: rgba(15, 23, 42, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
         
         #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-gradient);
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 20000;
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
         }
+
+        /* 动态背景微粒 */
+        #login-overlay::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 50%);
+            animation: pulse 10s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.5; }
+            100% { transform: scale(1.2); opacity: 0.8; }
+        }
+
         .login-card {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 3rem;
-            border-radius: 16px;
-            box-shadow: var(--card-shadow);
+            background: rgba(30, 41, 59, 0.7);
+            padding: 3.5rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             width: 100%;
             max-width: 420px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            animation: fadeIn 0.5s ease-out;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 1;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
         .login-header {
             text-align: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 3rem;
         }
+
         .login-header h2 {
-            font-size: 1.75rem;
-            font-weight: 600;
-            color: #1f2937;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #f8fafc;
             margin: 0;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
+
         .login-header p {
-            margin-top: 0.5rem;
-            color: #6b7280;
-            font-size: 0.875rem;
+            margin-top: 0.75rem;
+            color: #94a3b8;
+            font-size: 0.95rem;
+            font-weight: 300;
         }
+
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.75rem;
             position: relative;
         }
+
         .form-group label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 0.5rem;
+            position: absolute;
+            left: 1rem;
+            top: 1rem;
+            color: #94a3b8;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            background: transparent;
+            padding: 0 0.25rem;
         }
+
         .form-input {
             width: 100%;
-            padding: 0.875rem 1rem;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            padding: 1rem 1rem;
+            border: 1px solid #334155;
+            border-radius: 12px;
             font-size: 1rem;
             outline: none;
             transition: all 0.2s;
-            background: #f9fafb;
+            background: rgba(15, 23, 42, 0.6);
+            color: #f1f5f9;
             box-sizing: border-box;
         }
+
         .form-input:focus {
-            border-color: var(--primary-color);
-            background: white;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            border-color: var(--tech-blue-light);
+            background: rgba(15, 23, 42, 0.8);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         }
+
+        /* Floating Label Logic */
+        .form-input:focus ~ label,
+        .form-input:not(:placeholder-shown) ~ label {
+            top: -0.6rem;
+            left: 0.8rem;
+            font-size: 0.8rem;
+            color: var(--tech-accent);
+            background: #1e293b; 
+            font-weight: 600;
+        }
+
         .login-btn {
             width: 100%;
-            padding: 0.875rem;
-            background-color: var(--primary-color);
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--tech-blue-light), var(--tech-accent));
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            transition: all 0.3s;
+            margin-top: 1.5rem;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            position: relative;
+            overflow: hidden;
         }
+
         .login-btn:hover {
-            background-color: var(--primary-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
         }
+
         .login-btn:active {
-            transform: translateY(0);
+            transform: scale(0.98);
         }
+
+        .login-btn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        .login-btn:hover::after {
+            left: 100%;
+        }
+
         .error-msg {
-            color: #ef4444;
-            font-size: 0.875rem;
-            margin-top: 1rem;
+            color: #fca5a5;
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
             text-align: center;
             padding: 0.75rem;
-            background: #fef2f2;
-            border-radius: 6px;
-            border: 1px solid #fee2e2;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
             display: none;
             animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
         }
+
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
             20%, 80% { transform: translate3d(2px, 0, 0); }
             30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
+
         /* 隐藏主应用内容 */
         body.is-locked #root,
         body.is-locked > div:not(#login-overlay):not(#change-pass-overlay) {
@@ -136,10 +205,20 @@
             position: fixed;
             bottom: 20px;
             right: 20px;
-            font-size: 12px;
-            color: #6b7280;
+            font-size: 13px;
+            color: #64748b;
             cursor: pointer;
             z-index: 1000;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        #change-pass-trigger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            color: #0f172a;
         }
     `;
     document.head.appendChild(authStyle);
@@ -205,10 +284,18 @@
                 if (res.ok) {
                     token = data.token;
                     localStorage.setItem('auth_token', token);
+                    
+                    // 按钮状态更新
+                    const btn = e.target.querySelector('button[type="submit"]');
+                    if(btn) btn.textContent = '登录成功，正在跳转...';
+
                     // 销毁登录页
                     overlay.remove();
                     document.body.classList.remove('is-locked');
-                    restoreData(); // 开始同步数据
+                    
+                    // 同步数据并刷新
+                    await restoreData();
+                    window.location.reload();
                 } else {
                     errorDiv.textContent = data.error || '用户名或密码错误';
                     errorDiv.style.display = 'block';
@@ -225,7 +312,8 @@
         token = null;
         localStorage.removeItem('auth_token');
         document.getElementById('change-pass-overlay')?.remove();
-        showLoginPage();
+        // 强制刷新以重置状态
+        window.location.reload();
     };
 
     // 显示修改密码界面 (挂载到 window 以便 onclick 调用)
